@@ -44,7 +44,7 @@ export async function getJava(
         allowRetries: true,
         maxRetries: 3
       });
-      const url = 'https://static.azul.com/zulu/bin/';
+      const url = version.endsWith('-ea') ? 'https://cdn.zulu.org/zulu/ea/' : 'https://cdn.zulu.org/zulu/releases/';
       const response = await http.get(url);
       const statusCode = response.message.statusCode || 0;
       if (statusCode < 200 || statusCode > 299) {
