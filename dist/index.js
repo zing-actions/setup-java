@@ -4680,7 +4680,10 @@ function getJava(version, arch, jdkFile, javaPackage) {
                     allowRetries: true,
                     maxRetries: 3
                 });
-                const url = version.includes('-ea') ? 'https://cdn.zulu.org/zulu/ea/' : 'https://cdn.zulu.org/zulu/releases/';
+                const ZULU_BASE_URL = 'https://cdn.zulu.org/zulu';
+                const url = version.includes('-ea')
+                    ? `${ZULU_BASE_URL}/ea/`
+                    : `${ZULU_BASE_URL}/releases/`;
                 const response = yield http.get(url);
                 const statusCode = response.message.statusCode || 0;
                 if (statusCode < 200 || statusCode > 299) {
@@ -4696,7 +4699,7 @@ function getJava(version, arch, jdkFile, javaPackage) {
                 }
                 const contents = yield response.readBody();
                 const refs = contents.match(/<a href.*\">/gi) || [];
-                const downloadInfo = getDownloadInfo(refs, version, javaPackage);
+                const downloadInfo = getDownloadInfo(refs, version, javaPackage, url);
                 jdkFile = yield tc.downloadTool(downloadInfo.url);
                 version = downloadInfo.version;
                 compressedFileExtension = IS_WINDOWS ? '.zip' : '.tar.gz';
@@ -4804,7 +4807,7 @@ function unzipJavaDownload(repoRoot, fileEnding, destinationFolder, extension) {
         }
     });
 }
-function getDownloadInfo(refs, version, javaPackage) {
+function getDownloadInfo(refs, version, javaPackage, baseUrl) {
     version = normalizeVersion(version);
     let extension = '';
     if (IS_WINDOWS) {
@@ -4845,15 +4848,14 @@ function getDownloadInfo(refs, version, javaPackage) {
         // If we haven't returned, means we're looking at the correct platform
         let versions = ref.match(pkgRegexp) || [];
         if (versions.length > 1) {
-            throw new Error(`Invalid ref received from https://static.azul.com/zulu/bin/: ${ref}`);
+            throw new Error(`Invalid ref received from ${baseUrl}: ${ref}`);
         }
         if (versions.length == 0) {
             return;
         }
         const refVersion = versions[0].slice(pkgTypeLength, versions[0].length - 1);
         if (semver.satisfies(refVersion, version)) {
-            versionMap.set(refVersion, 'https://static.azul.com/zulu/bin/' +
-                ref.slice('<a href="'.length, ref.length - '">'.length));
+            versionMap.set(refVersion, `${baseUrl}` + ref.slice('<a href="'.length, ref.length - '">'.length));
         }
     });
     // Choose the most recent satisfying version
@@ -4868,7 +4870,7 @@ function getDownloadInfo(refs, version, javaPackage) {
         }
     }
     if (curUrl == '') {
-        throw new Error(`No valid download found for version ${version} and package ${javaPackage}. Check https://static.azul.com/zulu/bin/ for a list of valid versions or download your own jdk file and add the jdkFile argument`);
+        throw new Error(`No valid download found for version ${version} and package ${javaPackage}. Check ${baseUrl} for a list of valid versions or download your own jdk file and add the jdkFile argument`);
     }
     return { version: curVersion, url: curUrl };
 }
