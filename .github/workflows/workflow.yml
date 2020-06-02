@@ -5,7 +5,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest]
+        operating-system: [ubuntu-latest]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -24,26 +24,18 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest]
+        operating-system: [ubuntu-latest]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Clear tool cache
-      if: runner.os != 'windows'
       run: mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
-    - name: Clear tool cache (Windows)
-      if: runner.os == 'windows'
-      run: move "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
     - name: Setup Java 11
       uses: ./
       with:
         java-version: 11.0.7
     - name: Verify Java 11
-      if: runner.os != 'windows'
       run: __tests__/verify-java.sh 11.0.7
-    - name: Verify Java 11 (Windows)
-      if: runner.os == 'windows'
-      run: __tests__/verify-java.ps1 11.0.2
 
   test-proxy:
     runs-on: ubuntu-latest
