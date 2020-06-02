@@ -1,26 +1,77 @@
 name: Main workflow
 on: [push, pull_request]
 jobs:
-  run:
-    name: Run
+  build:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest]
+        operating-system: [ubuntu-latest]
     steps:
     - name: Checkout
-      uses: actions/checkout@master
-
-    - name: Set Node.js 10.x
-      uses: actions/setup-node@master
+      uses: actions/checkout@v2
+    - name: Setup Node.js 12
+      uses: actions/setup-node@v1
       with:
-        node-version: 10.x
-
+        node-version: 12.x
     - name: npm install
       run: npm install
-
     - name: Lint
       run: npm run format-check
-
     - name: npm test
       run: npm test
+
+  test:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Clear tool cache
+      run: mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+    - name: Setup Java 11
+      uses: ./
+      with:
+        java-version: 11.0.7
+    - name: Verify Java 11
+      run: __tests__/verify-java.sh 11.0.7
+
+  test-proxy:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --dns 127.0.0.1
+    services:
+      squid-proxy:
+        image: datadog/squid:latest
+        ports:
+          - 3128:3128
+    env:
+      https_proxy: http://squid-proxy:3128
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clear tool cache
+      run: rm -rf $RUNNER_TOOL_CACHE/*
+    - name: Setup Java 11
+      uses: ./
+      with:
+        java-version: 11.0.7
+    - name: Verify Java 11
+      run: __tests__/verify-java.sh 11.0.7
+
+  test-bypass-proxy:
+    runs-on: ubuntu-latest
+    env:
+      https_proxy: http://no-such-proxy:3128
+      no_proxy: github.com,cdn.azul.com
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clear tool cache
+      run: rm -rf $RUNNER_TOOL_CACHE/*
+    - name: Setup Java 11
+      uses: ./
+      with:
+        java-version: 11.0.7
+    - name: Verify Java 11
+      run: __tests__/verify-java.sh 11.0.7

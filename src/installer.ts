@@ -3,11 +3,11 @@ let tempDirectory = process.env['RUNNER_TEMP'] || '';
 import * as core from '@actions/core';
 import * as io from '@actions/io';
 import * as exec from '@actions/exec';
+import * as httpm from '@actions/http-client';
 import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as semver from 'semver';
-import * as httpm from 'typed-rest-client/HttpClient';
 
 const IS_WINDOWS = process.platform === 'win32';
 
@@ -39,15 +39,28 @@ export async function getJava(
   } else {
     let compressedFileExtension = '';
     if (!jdkFile) {
-      core.debug('Downloading Jdk from Azul');
-      let http: httpm.HttpClient = new httpm.HttpClient('setup-java');
-      let contents = await (
-        await http.get('https://static.azul.com/zulu/bin/')
-      ).readBody();
-      let refs = contents.match(/<a href.*\">/gi) || [];
+      core.debug('Downloading JDK from Azul');
+      const http = new httpm.HttpClient('setup-java', undefined, {
+        allowRetries: true,
+        maxRetries: 3
+      });
+      const url = 'https://cdn.azul.com/zing/releases/tgz/';
+      const response = await http.get(url);
+      const statusCode = response.message.statusCode || 0;
+      if (statusCode < 200 || statusCode > 299) {
+        let body = '';
+        try {
+          body = await response.readBody();
+        } catch (err) {
+          core.debug(`Unable to read body: ${err.message}`);
+        }
+        const message = `Unexpected HTTP status code '${response.message.statusCode}' when retrieving versions from '${url}'. ${body}`.trim();
+        throw new Error(message);
+      }
 
-      const downloadInfo = getDownloadInfo(refs, version, javaPackage);
-
+      const contents = await response.readBody();
+      const refs = contents.match(/<a href.*\">/gi) || [];
+      const downloadInfo = getDownloadInfo(refs, version, javaPackage, url);
       jdkFile = await tc.downloadTool(downloadInfo.url);
       version = downloadInfo.version;
       compressedFileExtension = IS_WINDOWS ? '.zip' : '.tar.gz';
@@ -76,6 +89,7 @@ export async function getJava(
   let extendedJavaHome = 'JAVA_HOME_' + version + '_' + arch;
   core.exportVariable('JAVA_HOME', toolPath);
   core.exportVariable(extendedJavaHome, toolPath);
+  core.exportVariable('ZING_TESTING_GRACE_PERIOD_SEC', '3600');
   core.addPath(path.join(toolPath, 'bin'));
 }
 
@@ -175,7 +189,8 @@ async function unzipJavaDownload(
 function getDownloadInfo(
   refs: string[],
   version: string,
-  javaPackage: string
+  javaPackage: string,
+  baseUrl: string
 ): {version: string; url: string} {
   version = normalizeVersion(version);
   let extension = '';
@@ -218,9 +233,7 @@ function getDownloadInfo(
     // If we haven't returned, means we're looking at the correct platform
     let versions = ref.match(pkgRegexp) || [];
     if (versions.length > 1) {
-      throw new Error(
-        `Invalid ref received from https://static.azul.com/zulu/bin/: ${ref}`
-      );
+      throw new Error(`Invalid ref received from ${baseUrl}: ${ref}`);
     }
     if (versions.length == 0) {
       return;
@@ -230,8 +243,7 @@ function getDownloadInfo(
     if (semver.satisfies(refVersion, version)) {
       versionMap.set(
         refVersion,
-        'https://static.azul.com/zulu/bin/' +
-          ref.slice('<a href="'.length, ref.length - '">'.length)
+        `${baseUrl}` + ref.slice('<a href="'.length, ref.length - '">'.length)
       );
     }
   });
@@ -250,7 +262,7 @@ function getDownloadInfo(
 
   if (curUrl == '') {
     throw new Error(
-      `No valid download found for version ${version} and package ${javaPackage}. Check https://static.azul.com/zulu/bin/ for a list of valid versions or download your own jdk file and add the jdkFile argument`
+      `No valid download found for version ${version} and package ${javaPackage}. Check ${baseUrl} for a list of valid versions or download your own jdk file and add the jdkFile argument`
     );
   }
 
