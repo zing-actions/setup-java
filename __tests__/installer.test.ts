@@ -61,7 +61,7 @@ describe('installer tests', () => {
   }, 100000);
 
   it('Downloads java if package is jre', async () => {
-    await installer.getJava('8.0.222', 'x64', '', 'jre');
+    await installer.getJava('8.0.252', 'x64', '', 'jre');
     const JavaDir = path.join(toolDir, 'jre', '8.0.252', 'x64');
 
     expect(fs.existsSync(`${JavaDir}.complete`)).toBe(true);
