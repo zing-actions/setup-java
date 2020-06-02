@@ -4713,6 +4713,7 @@ function getJava(version, arch, jdkFile, javaPackage) {
         let extendedJavaHome = 'JAVA_HOME_' + version + '_' + arch;
         core.exportVariable('JAVA_HOME', toolPath);
         core.exportVariable(extendedJavaHome, toolPath);
+        core.exportVariable('ZING_TESTING_GRACE_PERIOD_SEC', '3600');
         core.addPath(path.join(toolPath, 'bin'));
     });
 }
