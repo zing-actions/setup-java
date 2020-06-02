@@ -44,10 +44,7 @@ export async function getJava(
         allowRetries: true,
         maxRetries: 3
       });
-      const ZULU_BASE_URL = 'https://cdn.zulu.org/zulu';
-      const url = version.includes('-ea')
-        ? `${ZULU_BASE_URL}/ea/`
-        : `${ZULU_BASE_URL}/releases/`;
+      const url = 'https://cdn.azul.com/zing/releases/tgz/';
       const response = await http.get(url);
       const statusCode = response.message.statusCode || 0;
       if (statusCode < 200 || statusCode > 299) {
