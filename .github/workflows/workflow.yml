@@ -30,12 +30,29 @@ jobs:
       uses: actions/checkout@v2
     - name: Clear tool cache
       run: mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+<<<<<<< HEAD
     - name: Setup Java 11
       uses: ./
       with:
         java-version: 11.0.7
     - name: Verify Java 11
       run: __tests__/verify-java.sh 11.0.7
+=======
+    - name: Clear tool cache (Windows)
+      if: runner.os == 'windows'
+      run: move "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+    - name: Setup Java 13
+      id: setup-java
+      uses: ./
+      with:
+        java-version: 13.0.2
+    - name: Verify Java 13
+      if: runner.os != 'windows'
+      run: __tests__/verify-java.sh 13.0.2 "${{ steps.setup-java.outputs.path }}" "${{ steps.setup-java.outputs.version }}"
+    - name: Verify Java 13 (Windows)
+      if: runner.os == 'windows'
+      run: __tests__/verify-java.ps1 13.0.2 "${{ steps.setup-java.outputs.path }}" "${{ steps.setup-java.outputs.version }}"
+>>>>>>> d202f5dbf7256730fb690ec59f6381650114feb2
 
   test-proxy:
     runs-on: ubuntu-latest
@@ -53,12 +70,22 @@ jobs:
     - uses: actions/checkout@v2
     - name: Clear tool cache
       run: rm -rf $RUNNER_TOOL_CACHE/*
+<<<<<<< HEAD
     - name: Setup Java 11
       uses: ./
       with:
         java-version: 11.0.7
     - name: Verify Java 11
       run: __tests__/verify-java.sh 11.0.7
+=======
+    - name: Setup Java 13
+      id: setup-java
+      uses: ./
+      with:
+        java-version: 13.0.2
+    - name: Verify Java 13
+      run: __tests__/verify-java.sh 13.0.2 "${{ steps.setup-java.outputs.path }}" "${{ steps.setup-java.outputs.version }}"
+>>>>>>> d202f5dbf7256730fb690ec59f6381650114feb2
 
   test-bypass-proxy:
     runs-on: ubuntu-latest
@@ -69,9 +96,19 @@ jobs:
     - uses: actions/checkout@v2
     - name: Clear tool cache
       run: rm -rf $RUNNER_TOOL_CACHE/*
+<<<<<<< HEAD
     - name: Setup Java 11
       uses: ./
       with:
         java-version: 11.0.7
     - name: Verify Java 11
       run: __tests__/verify-java.sh 11.0.7
+=======
+    - name: Setup Java 13
+      id: setup-java
+      uses: ./
+      with:
+        java-version: 13.0.2
+    - name: Verify Java 13
+      run: __tests__/verify-java.sh 13.0.2 "${{ steps.setup-java.outputs.path }}" "${{ steps.setup-java.outputs.version }}"
+>>>>>>> d202f5dbf7256730fb690ec59f6381650114feb2

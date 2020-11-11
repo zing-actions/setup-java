@@ -1,5 +1,3 @@
-let tempDirectory = process.env['RUNNER_TEMP'] || '';
-
 import * as core from '@actions/core';
 import * as io from '@actions/io';
 import * as exec from '@actions/exec';
@@ -8,23 +6,10 @@ import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as semver from 'semver';
+import * as util from './util';
 
-const IS_WINDOWS = process.platform === 'win32';
-
-if (!tempDirectory) {
-  let baseLocation;
-  if (IS_WINDOWS) {
-    // On windows use the USERPROFILE env variable
-    baseLocation = process.env['USERPROFILE'] || 'C:\\';
-  } else {
-    if (process.platform === 'darwin') {
-      baseLocation = '/Users';
-    } else {
-      baseLocation = '/home';
-    }
-  }
-  tempDirectory = path.join(baseLocation, 'actions', 'temp');
-}
+const tempDirectory = util.getTempDir();
+const IS_WINDOWS = util.isWindows();
 
 export async function getJava(
   version: string,
@@ -60,7 +45,13 @@ export async function getJava(
 
       const contents = await response.readBody();
       const refs = contents.match(/<a href.*\">/gi) || [];
-      const downloadInfo = getDownloadInfo(refs, version, javaPackage, url);
+      const downloadInfo = getDownloadInfo(
+        refs,
+        version,
+        arch,
+        javaPackage,
+        url
+      );
       jdkFile = await tc.downloadTool(downloadInfo.url);
       version = downloadInfo.version;
       compressedFileExtension = IS_WINDOWS ? '.zip' : '.tar.gz';
@@ -87,10 +78,18 @@ export async function getJava(
   }
 
   let extendedJavaHome = 'JAVA_HOME_' + version + '_' + arch;
+  core.exportVariable(extendedJavaHome, toolPath); //TODO: remove for v2
+  // For portability reasons environment variables should only consist of
+  // uppercase letters, digits, and the underscore. Therefore we convert
+  // the extendedJavaHome variable to upper case and replace '.' symbols and
+  // any other non-alphanumeric characters with an underscore.
+  extendedJavaHome = extendedJavaHome.toUpperCase().replace(/[^0-9A-Z_]/g, '_');
   core.exportVariable('JAVA_HOME', toolPath);
   core.exportVariable(extendedJavaHome, toolPath);
   core.exportVariable('ZING_TESTING_GRACE_PERIOD_SEC', '3600');
   core.addPath(path.join(toolPath, 'bin'));
+  core.setOutput('path', toolPath);
+  core.setOutput('version', version);
 }
 
 function getCacheVersionString(version: string) {
@@ -189,20 +188,26 @@ async function unzipJavaDownload(
 function getDownloadInfo(
   refs: string[],
   version: string,
+  arch: string,
   javaPackage: string,
   baseUrl: string
 ): {version: string; url: string} {
   version = normalizeVersion(version);
+
+  const archExtension = arch === 'x86' ? 'i686' : 'x64';
+
   let extension = '';
   if (IS_WINDOWS) {
-    extension = `-win_x64.zip`;
+    extension = `-win_${archExtension}.zip`;
   } else {
     if (process.platform === 'darwin') {
-      extension = `-macosx_x64.tar.gz`;
+      extension = `-macosx_${archExtension}.tar.gz`;
     } else {
-      extension = `-linux_x64.tar.gz`;
+      extension = `-linux_${archExtension}.tar.gz`;
     }
   }
+
+  core.debug(`Searching for files with extension: ${extension}`);
 
   let pkgRegexp = new RegExp('');
   let pkgTypeLength = 0;
