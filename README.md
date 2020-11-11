@@ -21,6 +21,7 @@ steps:
   with:
     java-version: '8.0.252' # The JDK version to make available on the path.
     java-package: jdk # (jre, jdk, or jdk+fx) - defaults to jdk
+    architecture: x64 # (x64 or x86) - defaults to x64
 - run: java -cp java HelloWorldApp
 ```
 Examples of version specifications that the java-version parameter will accept:
@@ -89,12 +90,15 @@ jobs:
         server-id: maven # Value of the distributionManagement/repository/id field of the pom.xml
         server-username: MAVEN_USERNAME # env variable for username in deploy
         server-password: MAVEN_CENTRAL_TOKEN # env variable for token in deploy
+        gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
+        gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
 
     - name: Publish to Apache Maven Central
       run: mvn deploy
       env:
         MAVEN_USERNAME: maven_username123
         MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 ```
 
 The two `settings.xml` files created from the above example look like the following.
@@ -109,6 +113,10 @@ The two `settings.xml` files created from the above example look like the follow
       <id>github</id>
       <username>${env.GITHUB_ACTOR}</username>
       <password>${env.GITHUB_TOKEN}</password>
+    </server>
+    <server>
+      <id>gpg.passphrase</id>
+      <passphrase>${env.GPG_PASSPHRASE}</passphrase>
     </server>
   </servers>
 </settings>
@@ -125,11 +133,17 @@ The two `settings.xml` files created from the above example look like the follow
       <username>${env.MAVEN_USERNAME}</username>
       <password>${env.MAVEN_CENTRAL_TOKEN}</password>
     </server>
+    <server>
+      <id>gpg.passphrase</id>
+      <passphrase>${env.MAVEN_GPG_PASSPHRASE}</passphrase>
+    </server>
   </servers>
 </settings>
 ```
 
 ***NOTE: The `settings.xml` file is created in the Actions $HOME directory. If you have an existing `settings.xml` file at that location, it will be overwritten. See below for using the `settings-path` to change your `settings.xml` file location.***
+
+If `gpg-private-key` input is provided, the private key will be written to a file in the runner's temp directory, the private key file will be imported into the GPG keychain, and then the file will be promptly removed before proceeding with the rest of the setup process. A cleanup step will remove the imported private key from the GPG keychain after the job completes regardless of the job status. This ensures that the private key is no longer accessible on self-hosted runners and cannot "leak" between jobs (hosted runners are always clean instances).
 
 See the help docs on [Publishing a Package](https://help.github.com/en/github/managing-packages-with-github-packages/configuring-apache-maven-for-use-with-github-packages#publishing-a-package) for more information on the `pom.xml` file.
 
