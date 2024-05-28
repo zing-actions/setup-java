@@ -52,6 +52,6 @@ outputs:
   version:
     description: 'Actual version of the java environment that has been installed'
 runs:
-  using: 'node12'
+  using: 'node20'
   main: 'dist/setup/index.js'
   post: 'dist/cleanup/index.js'
